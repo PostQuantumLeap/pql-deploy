@@ -428,9 +428,19 @@ docker load -i images.tar                                  # or: podman load -i 
 Then continue with **§2 Configure** in that folder, with two differences:
 
 - Pin the image the kit carries — `PQL_IMAGE=ghcr.io/postquantumleap/pql-app:<version>`
-  in `.env`. Compose then finds every image locally and pulls nothing.
+  in `.env` — and start with **`--pull never`** (`docker compose up -d --pull never`, or
+  `podman compose up -d --pull never`). Compose then uses the loaded images, and a missing
+  one fails loudly instead of being fetched from the internet.
 - If `docker compose version` fails, or you run Podman, put the kit's Compose on your
-  `PATH`: `install -m 0755 bin/docker-compose ~/.local/bin/docker-compose`.
+  `PATH` — `~/.local/bin` may not exist yet on a fresh host, so create it first:
+
+  ```bash
+  mkdir -p ~/.local/bin && install -m 0755 bin/docker-compose ~/.local/bin/docker-compose
+  export PATH="$HOME/.local/bin:$PATH"
+  ```
+
+  Podman then also needs its socket and, rootless, ports 80/443 — [§9](#9-running-under-podman),
+  steps 2 and 3.
 
 **TLS offline:** Caddy cannot reach Let's Encrypt from an air-gapped host. Install your own
 certificate — your internal CA works — from the app's TLS page ([§5](#5-certificates)).
@@ -480,7 +490,14 @@ systemctl --user enable --now podman.socket
 ```
 
 **3. Rootless?** Allow ports 80 and 443 once — see
-[ports below 1024](#rootless-and-ports-below-1024).
+[ports below 1024](#rootless-and-ports-below-1024). **On RHEL and Fedora, open the
+firewall too** — firewalld admits only SSH and Cockpit by default, so the app answers on
+`https://localhost` inside the machine and nothing reaches it from outside:
+
+```bash
+sudo firewall-cmd --permanent --add-service=https --add-service=http
+sudo firewall-cmd --reload
+```
 
 **4. Start:**
 

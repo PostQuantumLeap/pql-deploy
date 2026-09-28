@@ -153,14 +153,28 @@ jobs:
           grep -qx "ghcr.io/postquantumleap/pql-app:${V}" images.txt \
             || { echo "::error::the app image is missing from the resolved list" >&2; exit 1; }
 
-      # No docker/login-action, deliberately. Pulling ANONYMOUSLY is what makes
-      # this job double as a standing check that the images customers are told
-      # to pull can actually be pulled by someone who is not us.
+      # ⟳ PODMAN, NOT DOCKER, TO PULL AND SAVE (2026-09-28). `docker save` writes
+      # Docker Hub images under their SHORT names (`postgres:16`), and `podman
+      # load` files a short name under `localhost/` — so on the first real Podman
+      # install the kit's postgres and caddy loaded as localhost/postgres:16 and
+      # localhost/caddy:2.11.4, the compose file asked for docker.io/library/…,
+      # and Compose downloaded both from the internet. `podman save` keeps the
+      # FULL names, and `docker load` accepts those too. The last check below
+      # loads the kit into BOTH runtimes so this cannot come back.
+      - name: Podman is present
+        run: |
+          set -euo pipefail
+          command -v podman >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q podman; }
+          podman --version
+
+      # No registry login, deliberately. Pulling ANONYMOUSLY is what makes this
+      # job double as a standing check that the images customers are told to
+      # pull can actually be pulled by someone who is not us.
       - name: Pull every image for this architecture
         run: |
           set -euo pipefail
           while read -r image; do
-            if ! docker pull --platform "linux/${ARCH}" "$image"; then
+            if ! podman pull --platform "linux/${ARCH}" "$image"; then
               echo "::error::anonymous pull of $image for linux/${ARCH} failed — the version may not exist, the package may not be public, or the manifest may not carry this platform" >&2
               exit 1
             fi
@@ -173,7 +187,7 @@ jobs:
         run: |
           set -euo pipefail
           while read -r image; do
-            got="$(docker image inspect "$image" --format '{{.Architecture}}')"
+            got="$(podman image inspect "$image" --format '{{.Architecture}}')"
             if [ "$got" != "$ARCH" ]; then
               echo "::error::expected linux/${ARCH} but $image is ${got} — this kit would be mislabelled" >&2
               exit 1
@@ -213,7 +227,8 @@ jobs:
           # CI definitions, which are no use to an operator.
           git archive HEAD -- . ':!.github' | tar -x -C "$KIT"
 
-          xargs docker save -o "$KIT/images.tar" < images.txt
+          # -m: several images in one archive; docker-archive: what `docker load` reads.
+          xargs podman save -m --format docker-archive -o "$KIT/images.tar" < images.txt
           install -m 0755 "docker-compose-linux-${UNAME}" "$KIT/bin/docker-compose"
 
           {
@@ -221,7 +236,7 @@ jobs:
             echo "deploy files: $(git rev-parse HEAD)"
             echo "compose:      $(cat compose.version)"
             while read -r image; do
-              echo "image:        $image  $(docker image inspect "$image" --format '{{.Id}}')"
+              echo "image:        $image  $(podman image inspect "$image" --format '{{.Id}}')"
             done < images.txt
           } > "$KIT/VERSIONS"
 
@@ -257,16 +272,19 @@ jobs:
           PQL_IMAGE=ghcr.io/postquantumleap/pql-app:__VERSION__
           ```
 
-          **4. Start:**
+          **4. Start — `--pull never`**, so a missing image fails loudly here instead of
+          being fetched from the internet:
 
           ```bash
-          docker compose up -d
+          docker compose up -d --pull never
           # Podman: systemctl --user enable --now podman.socket, then
-          podman compose up -d
+          podman compose up -d --pull never
           ```
 
           Rootless Podman cannot bind 80/443 without one sysctl — README §9, *Rootless,
-          and ports below 1024*.
+          and ports below 1024*. On RHEL and Fedora, firewalld also blocks 80/443 from
+          other machines until you open them:
+          `sudo firewall-cmd --permanent --add-service=https --add-service=http && sudo firewall-cmd --reload`
 
           **TLS offline.** Caddy cannot reach Let's Encrypt from here. Install your own
           certificate from the app's TLS page (README §5) — your internal CA works.
@@ -284,11 +302,9 @@ jobs:
       # own Compose which images the kit's own compose file runs. Any image it
       # names that did not come out of images.tar would be pulled on site — the
       # exact failure this kit exists to prevent.
-      - name: The kit stands on its own
+      - name: The kit stands on its own — in Podman AND in Docker
         run: |
           set -euo pipefail
-          xargs docker rmi < images.txt
-          docker load -i "$KIT/images.tar"
           cd "$KIT"
           sha256sum -c --quiet SHA256SUMS
           # Placeholders only so interpolation has no empty required values; the
@@ -298,15 +314,24 @@ jobs:
             ./bin/docker-compose -f docker-compose.yml config --images | sort -u > ../wanted.txt
           cd ..
           cat wanted.txt
+
+          # Podman: throw the pulled images away, load the kit, and require every
+          # image the compose file runs UNDER THE NAME IT USES — a localhost/ copy
+          # does not count, which is exactly the failure this step exists for.
+          xargs podman rmi < images.txt
+          podman load -i "$KIT/images.tar"
           missing=""
-          while read -r image; do
-            docker image inspect "$image" >/dev/null 2>&1 || missing="$missing $image"
-          done < wanted.txt
-          if [ -n "$missing" ]; then
-            echo "::error::the compose file runs image(s) the kit does not carry:$missing" >&2
-            exit 1
-          fi
-          echo "every image the compose file runs loads from the kit"
+          while read -r image; do podman image exists "$image" || missing="$missing $image"; done < wanted.txt
+          [ -z "$missing" ] || { podman images; echo "::error::podman: the kit does not provide:$missing" >&2; exit 1; }
+          echo "podman: every image the compose file runs loads from the kit, under its own name"
+
+          # Docker: its store never saw these images (they were pulled with podman),
+          # so the kit is the only possible source.
+          docker load -i "$KIT/images.tar"
+          missing=""
+          while read -r image; do docker image inspect "$image" >/dev/null 2>&1 || missing="$missing $image"; done < wanted.txt
+          [ -z "$missing" ] || { docker images; echo "::error::docker: the kit does not provide:$missing" >&2; exit 1; }
+          echo "docker: every image the compose file runs loads from the kit"
 
       - name: Package
         run: |
