@@ -1,0 +1,29 @@
+# Remote engine "dmz-frankfurt" (id 7), from PQL's setup wizard.
+# The engine token is NOT in this file. It is in the Secret named by
+# existingSecret, which the command shown beside this file creates.
+serverUrl: "https://pql.corp.example"
+existingSecret: "dmz-frankfurt-token"
+engineName: "dmz-frankfurt"
+engineId: "7"
+instanceLabel: "dmz-frankfurt-a"
+image:
+  repository: "registry.corp.example/pql/remote-engine"
+  tag: "1.3.0"
+nodeSelector:
+  kubernetes.io/arch: "amd64"
+autoUpdate: "notify"
+relay:
+  port: 8443
+  publicName: "relay.dmz.example"
+  tls: "auto"
+  service:
+    type: "LoadBalancer"
+proxy:
+  url: "http://proxy.corp.example:8080"
+  noProxy: "localhost,10.0.0.0/8"
+  credentialsInSecret: true
+caBundle:
+  configMap: "dmz-frankfurt-ca"
+  key: "ca.pem"
+logging:
+  level: "INFO"

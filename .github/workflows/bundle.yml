@@ -1,0 +1,335 @@
+name: air-gapped bundle
+
+# Packages a COMPLETE OFFLINE KIT per architecture and attaches it to a release
+# here, for sites that cannot reach a registry or the internet at all:
+#
+#   pql-offline-<v>-<arch>.tar.gz
+#     pql-offline-<v>-<arch>/
+#       docker-compose.yml, .env.example, deploy/, README.md, LICENSE
+#       images.tar        every image docker-compose.yml runs (app, postgres, caddy)
+#       bin/docker-compose  the Compose v2 binary, checksum-verified from docker/compose
+#       OFFLINE.md        the five steps, for this version and architecture
+#       VERSIONS          image digests and the Compose version inside
+#       SHA256SUMS        of everything above
+#
+# ⟳ 2026-09-28: this used to attach the app image alone and told the operator to
+# "pre-stage postgres:16 and caddy:2.11.4 the same way" — which means an
+# air-gapped site still needed a connected machine, a registry client and two
+# pulls it had to get exactly right, plus a Compose binary nobody mentioned.
+# Podman ships no Compose at all. The kit carries all of it.
+#
+# ── Why this runs in THIS repository and not in the product repository ──
+#
+# The product's publish script writes two files side by side into dist/:
+# pql-app-<v>.tar.gz, which is FOR CUSTOMERS, and pql-<v>-src.tar.gz, which is
+# the PROPRIETARY SOURCE and must never be published. The script says so in a
+# warning to its own operator, because that adjacency is exactly how the wrong
+# one gets attached to a release.
+#
+# Running the packaging here removes the possibility rather than guarding it:
+# this repository has no source in it, and this job builds the bundle from the
+# public images it pulls anonymously. There is no src archive on the runner to
+# attach by mistake. The check below is a second line, not the first.
+#
+# ── ONE BUNDLE PER ARCHITECTURE, and why it cannot be one file ──
+#
+# `docker save` writes the image for ONE platform. It has no manifest-list form:
+# saving a multi-arch tag on an amd64 machine silently produces an amd64-only
+# tarball, which is why `3.0.0`'s bundle was amd64-only while the image beside it
+# had been multi-arch for a day and nothing anywhere disagreed.
+#
+# So each architecture is pulled and saved on its OWN NATIVE RUNNER and attached
+# as its own asset. Two downloads and the customer picks, rather than one file
+# carrying images half of them cannot run. The alternative — `docker save` of
+# both platforms into one archive — needs a containerd-backed store the runner
+# does not have, and would double every customer's download to ship them a copy
+# of an architecture they do not own.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Published image version to package, e.g. 3.4.0 (no leading v)'
+        required: true
+        type: string
+
+permissions:
+  contents: write   # create the release and upload the assets
+
+jobs:
+  # The release must exist BEFORE the matrix uploads into it. Two parallel jobs
+  # racing to `gh release create` is a 422 for whichever loses.
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Create or refresh the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          V: ${{ inputs.version }}
+          # ⚠ EVERY `gh release` CALL PASSES --repo, because this job has no
+          # actions/checkout. Without a git directory `gh` cannot infer the
+          # repository and dies with "fatal: not a git repository" — which it
+          # reports as a git error, not a gh one, so it reads like a broken
+          # checkout rather than a missing flag. Measured on run 32816665603.
+          # Checking out a whole repository just to create a release would be
+          # the more expensive way to fix it.
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag="v${V}"
+
+          # Quoted heredoc: the notes contain markdown code fences, and an
+          # unquoted one would run everything between the backticks as command
+          # substitution instead of writing it out. The version is substituted
+          # afterwards rather than interpolated, for the same reason.
+          cat > notes.md <<'NOTES'
+          Offline kit for Post Quantum Leap `__VERSION__` — everything an air-gapped
+          host needs: the deployment files, **all three container images** (app,
+          PostgreSQL, Caddy) and the **Compose v2 binary**. Nothing is downloaded
+          at install time.
+
+          **Pick the file that matches the machine you will run it on.** Container
+          images are saved one architecture per file, so there is no "both" download.
+
+          ```bash
+          uname -m     # x86_64 -> amd64,  aarch64/arm64 -> arm64
+          ```
+
+          ```bash
+          sha256sum -c pql-offline-__VERSION__-amd64.tar.gz.sha256
+          tar -xzf pql-offline-__VERSION__-amd64.tar.gz
+          cd pql-offline-__VERSION__-amd64
+          ```
+
+          Then follow `OFFLINE.md` inside — load the images, put the Compose binary
+          on your `PATH`, fill in `.env`, start.
+
+          Loading the wrong architecture is not silent: the containers start and die
+          immediately with `exec format error`.
+          NOTES
+          sed -i "s/__VERSION__/${V}/g" notes.md
+          # The heredoc is indented to stay inside this YAML block scalar; strip
+          # that indent back off before GitHub renders it as markdown.
+          sed -i 's/^          //' notes.md
+
+          if ! gh release view "$tag" --repo "$REPO" >/dev/null 2>&1; then
+            gh release create "$tag" --repo "$REPO" --title "Post Quantum Leap $V" --notes-file notes.md
+          else
+            gh release edit "$tag" --repo "$REPO" --notes-file notes.md
+          fi
+
+  bundle:
+    needs: release
+    strategy:
+      fail-fast: false      # an arm64 runner shortage must not lose the amd64 bundle
+      matrix:
+        include:
+          - arch: amd64
+            uname: x86_64
+            runner: ubuntu-24.04
+          - arch: arm64
+            uname: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    env:
+      V: ${{ inputs.version }}
+      ARCH: ${{ matrix.arch }}
+      KIT: pql-offline-${{ inputs.version }}-${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The image list comes FROM docker-compose.yml, not from a second list kept
+      # here: a service added there and forgotten here would ship a kit that
+      # tries to pull on the one host that cannot. Each `image:` line carries its
+      # default after `:-`; the app's is replaced by the version being packaged.
+      - name: Resolve the images docker-compose.yml runs
+        run: |
+          set -euo pipefail
+          sed -nE 's/^[[:space:]]*image:[[:space:]]*\$\{[A-Z_]+:-([^}]+)\}.*/\1/p' docker-compose.yml \
+            | sed -E "s#^(ghcr\.io/postquantumleap/pql-app):.*#\1:${V}#" > images.txt
+          cat images.txt
+          [ "$(wc -l < images.txt)" -ge 3 ] || { echo "::error::expected at least three images in docker-compose.yml" >&2; exit 1; }
+          grep -qx "ghcr.io/postquantumleap/pql-app:${V}" images.txt \
+            || { echo "::error::the app image is missing from the resolved list" >&2; exit 1; }
+
+      # No docker/login-action, deliberately. Pulling ANONYMOUSLY is what makes
+      # this job double as a standing check that the images customers are told
+      # to pull can actually be pulled by someone who is not us.
+      - name: Pull every image for this architecture
+        run: |
+          set -euo pipefail
+          while read -r image; do
+            if ! docker pull --platform "linux/${ARCH}" "$image"; then
+              echo "::error::anonymous pull of $image for linux/${ARCH} failed — the version may not exist, the package may not be public, or the manifest may not carry this platform" >&2
+              exit 1
+            fi
+          done < images.txt
+
+      # THE CHECK THAT MAKES THIS WORTH SPLITTING. A native runner usually pulls
+      # the right platform, but "usually" is how the amd64-only bundle shipped.
+      # Assert the ARCHITECTURE OF THE THINGS ABOUT TO BE SAVED, not of the runner.
+      - name: Every pulled image really is this architecture
+        run: |
+          set -euo pipefail
+          while read -r image; do
+            got="$(docker image inspect "$image" --format '{{.Architecture}}')"
+            if [ "$got" != "$ARCH" ]; then
+              echo "::error::expected linux/${ARCH} but $image is ${got} — this kit would be mislabelled" >&2
+              exit 1
+            fi
+            echo "confirmed ${got}  $image"
+          done < images.txt
+
+      # Podman ships no Compose, and a plain Docker Engine may lack the plugin;
+      # an air-gapped host cannot curl it. The latest docker/compose release,
+      # verified against the .sha256 that release publishes beside it, and then
+      # RUN on this native runner so a wrong-architecture binary cannot ship.
+      - name: Fetch and verify the Compose v2 binary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UNAME: ${{ matrix.uname }}
+        run: |
+          set -euo pipefail
+          tag="$(gh release view --repo docker/compose --json tagName --jq .tagName)"
+          asset="docker-compose-linux-${UNAME}"
+          base="https://github.com/docker/compose/releases/download/${tag}"
+          curl -fsSLo "$asset" "$base/$asset"
+          curl -fsSLo "$asset.sha256" "$base/$asset.sha256"
+          sha256sum -c "$asset.sha256"
+          chmod +x "$asset"
+          "./$asset" version
+          echo "$tag" > compose.version
+
+      - name: Assemble the kit
+        env:
+          UNAME: ${{ matrix.uname }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$KIT/bin"
+
+          # The deployment files exactly as committed — not the workspace, which
+          # by now holds images.txt and the Compose download — and without the
+          # CI definitions, which are no use to an operator.
+          git archive HEAD -- . ':!.github' | tar -x -C "$KIT"
+
+          xargs docker save -o "$KIT/images.tar" < images.txt
+          install -m 0755 "docker-compose-linux-${UNAME}" "$KIT/bin/docker-compose"
+
+          {
+            echo "Post Quantum Leap ${V} — offline kit for linux/${ARCH}"
+            echo "deploy files: $(git rev-parse HEAD)"
+            echo "compose:      $(cat compose.version)"
+            while read -r image; do
+              echo "image:        $image  $(docker image inspect "$image" --format '{{.Id}}')"
+            done < images.txt
+          } > "$KIT/VERSIONS"
+
+          cat > "$KIT/OFFLINE.md" <<'EOF'
+          # Offline install — Post Quantum Leap __VERSION__ (linux/__ARCH__)
+
+          Everything an air-gapped host needs is in this folder: the deployment files,
+          every container image `docker-compose.yml` runs, and the Compose v2 binary.
+          Nothing is downloaded. The full guide is `README.md`; these are the steps that
+          differ offline.
+
+          **0. Right architecture?** `uname -m` must say `__UNAME__`. Otherwise fetch the
+          other kit — these images cannot run here.
+
+          **1. Load the images** (app, PostgreSQL, Caddy):
+
+          ```bash
+          docker load -i images.tar        # or: podman load -i images.tar
+          ```
+
+          **2. Compose.** Podman has none, and Docker may lack the plugin
+          (`docker compose version` fails). Install the one in this kit:
+
+          ```bash
+          mkdir -p ~/.local/bin && install -m 0755 bin/docker-compose ~/.local/bin/docker-compose
+          export PATH="$HOME/.local/bin:$PATH"
+          ```
+
+          **3. Configure.** `cp .env.example .env`, set the four REQUIRED values
+          (README §2), and pin the image this kit carries:
+
+          ```bash
+          PQL_IMAGE=ghcr.io/postquantumleap/pql-app:__VERSION__
+          ```
+
+          **4. Start:**
+
+          ```bash
+          docker compose up -d
+          # Podman: systemctl --user enable --now podman.socket, then
+          podman compose up -d
+          ```
+
+          Rootless Podman cannot bind 80/443 without one sysctl — README §9, *Rootless,
+          and ports below 1024*.
+
+          **TLS offline.** Caddy cannot reach Let's Encrypt from here. Install your own
+          certificate from the app's TLS page (README §5) — your internal CA works.
+
+          `SHA256SUMS` covers every file in this folder: `sha256sum -c SHA256SUMS`.
+          EOF
+          sed -i -e 's/^          //' -e "s/__VERSION__/${V}/g" -e "s/__ARCH__/${ARCH}/g" -e "s/__UNAME__/${UNAME}/g" "$KIT/OFFLINE.md"
+
+          ( cd "$KIT" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS )
+          ls -la "$KIT" "$KIT/bin"
+          du -sh "$KIT/images.tar"
+
+      # Prove the kit works WITHOUT the network it will not have: throw the
+      # pulled images away, load them back from the kit alone, and ask the kit's
+      # own Compose which images the kit's own compose file runs. Any image it
+      # names that did not come out of images.tar would be pulled on site — the
+      # exact failure this kit exists to prevent.
+      - name: The kit stands on its own
+        run: |
+          set -euo pipefail
+          xargs docker rmi < images.txt
+          docker load -i "$KIT/images.tar"
+          cd "$KIT"
+          sha256sum -c --quiet SHA256SUMS
+          # Placeholders only so interpolation has no empty required values; the
+          # config is rendered, never started.
+          PQL_IMAGE="ghcr.io/postquantumleap/pql-app:${V}" POSTGRES_PASSWORD=x SESSION_SECRET_KEY=x \
+            INITIAL_ADMIN_PASSWORD=x SETTINGS_ENC_KEY=x \
+            ./bin/docker-compose -f docker-compose.yml config --images | sort -u > ../wanted.txt
+          cd ..
+          cat wanted.txt
+          missing=""
+          while read -r image; do
+            docker image inspect "$image" >/dev/null 2>&1 || missing="$missing $image"
+          done < wanted.txt
+          if [ -n "$missing" ]; then
+            echo "::error::the compose file runs image(s) the kit does not carry:$missing" >&2
+            exit 1
+          fi
+          echo "every image the compose file runs loads from the kit"
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          tar -czf "${KIT}.tar.gz" "$KIT"
+          sha256sum "${KIT}.tar.gz" > "${KIT}.tar.gz.sha256"
+          ls -lh "${KIT}.tar.gz"
+          cat "${KIT}.tar.gz.sha256"
+
+      - name: Refuse to upload anything but the kit
+        run: |
+          set -euo pipefail
+          # Belt and braces behind the structural guarantee described at the top.
+          if find . -name '*src*.tar.gz' | grep -q .; then
+            echo "::error::a source archive is present on the runner — refusing to publish" >&2
+            exit 1
+          fi
+          echo "no source archive present"
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release upload "v${V}" --repo "$REPO" "${KIT}.tar.gz" "${KIT}.tar.gz.sha256" --clobber
