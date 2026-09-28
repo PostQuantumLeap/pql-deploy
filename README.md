@@ -19,8 +19,14 @@ behind them.
 |---|---|---|
 | **Docker** | [install/docker.md](install/docker.md) | [install/docker-airgapped.md](install/docker-airgapped.md) |
 | **Podman** 4.7+ (rootless by default) | [install/podman.md](install/podman.md) | [install/podman-airgapped.md](install/podman-airgapped.md) |
+| **Windows** (Docker Desktop or Podman Desktop) | [the Windows installer](#on-windows) | N/A |
+| **Kubernetes** (Helm) | [deploy/KUBERNETES.md](deploy/KUBERNETES.md) | N/A — see below |
 
-Windows: [the Windows installer](#on-windows). Kubernetes: [`deploy/KUBERNETES.md`](deploy/KUBERNETES.md).
+**Kubernetes without internet is possible, but has no step-by-step guide yet.** The
+[offline kit](#8-air-gapped-installs) carries the Helm chart (`deploy/helm/pql`) and every
+image: load them, push them to your internal registry, and point the chart there with
+`image.repository`, `caddyImage` and — with the bundled evaluation database —
+`postgresql.image`. The Windows installer always downloads, so it has no offline mode.
 
 ---
 
