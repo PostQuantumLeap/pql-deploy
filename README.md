@@ -76,8 +76,7 @@ containers.
 ## 1. Get the files
 
 ```bash
-git clone https://github.com/PostQuantumLeap/pql-deploy.git postquantumleap
-cd postquantumleap
+git clone https://github.com/PostQuantumLeap/pql-deploy.git postquantumleap && cd postquantumleap
 ```
 
 **No git?** [Download the ZIP](https://github.com/PostQuantumLeap/pql-deploy/archive/refs/heads/main.zip)
@@ -161,23 +160,40 @@ prefer it — Docker Desktop requires a paid subscription above a company-size t
 
 ## 2. Configure
 
+**Quickest:** one command creates `.env` with all four secrets generated and the image
+pinned — and never overwrites an existing `.env`:
+
+```bash
+sh install/generate-env.sh --version 3.4.0 --admin admin@yourcompany.example
+```
+
+**By hand instead:** copy the template, then set the four required values in `.env`. The
+file carries the command for each; briefly:
+
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and set the four required values. The file carries the exact command to
-generate each one; briefly:
+`POSTGRES_PASSWORD` and `INITIAL_ADMIN_PASSWORD`:
 
 ```bash
-# POSTGRES_PASSWORD and INITIAL_ADMIN_PASSWORD
 openssl rand -base64 36
+```
 
-# SESSION_SECRET_KEY  (≥ 32 chars)
+`SESSION_SECRET_KEY` (≥ 32 characters):
+
+```bash
 python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+```
 
-# SETTINGS_ENC_KEY  (must be a real Fernet key: URL-safe base64 of 32 random bytes)
+`SETTINGS_ENC_KEY` — must be a real Fernet key, URL-safe base64 of 32 random bytes. With
+Python, or with OpenSSL:
+
+```bash
 python3 -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
-#   …or, with OpenSSL instead of Python:
+```
+
+```bash
 openssl rand -base64 32 | tr '+/' '-_'
 ```
 
@@ -185,8 +201,7 @@ Neither needs anything installed beyond a stock Python or OpenSSL. Neither avail
 Borrow the Python in the image, which carries the `cryptography` library:
 
 ```bash
-docker run --rm --entrypoint python ghcr.io/postquantumleap/pql-app:latest \
-  -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+docker run --rm --entrypoint python ghcr.io/postquantumleap/pql-app:latest -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
 `--entrypoint python` is required and is easy to lose when retyping this. The image
@@ -337,8 +352,7 @@ configuration. After that the TLS tab owns the setting.
 ## 6. Upgrading
 
 ```bash
-docker compose pull
-docker compose up -d
+docker compose pull && docker compose up -d
 ```
 
 Same `.env`, same volumes. `alembic upgrade head` runs the new migrations **in place**
@@ -387,15 +401,20 @@ consequence is that a database backup does not restore your TLS.
 | Uploaded and CSR-generated keys and chains | `tls_certs` | re-uploading the certificate, or re-running the CSR flow |
 | ACME account, issued certificates, the local CA | `caddy_data` | Caddy re-orders (ACME repairs itself); a self-signed instance gets a **new local CA**, so the root you distributed no longer matches |
 
-```bash
-# Database
-docker compose exec -T db pg_dump -U postquantumleap postquantumleap | gzip > pql-$(date +%F).sql.gz
+The database:
 
-# Key material
-docker run --rm -v postquantumleap_tls_certs:/v -v "$PWD:/out" alpine \
-  tar czf /out/tls_certs-$(date +%F).tar.gz -C /v .
-docker run --rm -v postquantumleap_caddy_data:/v -v "$PWD:/out" alpine \
-  tar czf /out/caddy_data-$(date +%F).tar.gz -C /v .
+```bash
+docker compose exec -T db pg_dump -U postquantumleap postquantumleap | gzip > pql-$(date +%F).sql.gz
+```
+
+The key material — two volumes, one command each:
+
+```bash
+docker run --rm -v postquantumleap_tls_certs:/v -v "$PWD:/out" alpine tar czf /out/tls_certs-$(date +%F).tar.gz -C /v .
+```
+
+```bash
+docker run --rm -v postquantumleap_caddy_data:/v -v "$PWD:/out" alpine tar czf /out/caddy_data-$(date +%F).tar.gz -C /v .
 ```
 
 Nothing here is unrecoverable — the TLS tab can re-provision all of it — but it is
@@ -432,11 +451,10 @@ repository's [Releases](https://github.com/PostQuantumLeap/pql-deploy/releases),
 both across, then:
 
 ```bash
-sha256sum -c pql-offline-<version>-amd64.tar.gz.sha256    # verify before unpacking
-tar -xzf pql-offline-<version>-amd64.tar.gz
-cd pql-offline-<version>-amd64
-docker load -i images.tar                                  # or: podman load -i images.tar
+sha256sum -c pql-offline-<version>-amd64.tar.gz.sha256 && tar -xzf pql-offline-<version>-amd64.tar.gz && cd pql-offline-<version>-amd64 && docker load -i images.tar
 ```
+
+It verifies the checksum before unpacking. Under Podman the last part is `podman load -i images.tar`.
 
 Then continue with **§2 Configure** in that folder, with two differences:
 
@@ -448,8 +466,7 @@ Then continue with **§2 Configure** in that folder, with two differences:
   `PATH` — `~/.local/bin` may not exist yet on a fresh host, so create it first:
 
   ```bash
-  mkdir -p ~/.local/bin && install -m 0755 bin/docker-compose ~/.local/bin/docker-compose
-  export PATH="$HOME/.local/bin:$PATH"
+  mkdir -p ~/.local/bin && install -m 0755 bin/docker-compose ~/.local/bin/docker-compose && export PATH="$HOME/.local/bin:$PATH"
   ```
 
   Podman then also needs its socket and, rootless, ports 80/443 — [§9](#9-running-under-podman),
@@ -485,10 +502,7 @@ for you. The thing your package manager may offer instead, `podman-compose`, doe
 need Docker installed:
 
 ```bash
-mkdir -p ~/.local/bin
-curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" -o ~/.local/bin/docker-compose
-chmod +x ~/.local/bin/docker-compose
-export PATH="$HOME/.local/bin:$PATH"
+mkdir -p ~/.local/bin && curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" -o ~/.local/bin/docker-compose && chmod +x ~/.local/bin/docker-compose && export PATH="$HOME/.local/bin:$PATH"
 ```
 
 `$(uname -m)` resolves to the right asset on both architectures — `aarch64` and `x86_64`
@@ -508,8 +522,7 @@ firewall too** — firewalld admits only SSH and Cockpit by default, so the app 
 `https://localhost` inside the machine and nothing reaches it from outside:
 
 ```bash
-sudo firewall-cmd --permanent --add-service=https --add-service=http
-sudo firewall-cmd --reload
+sudo firewall-cmd --permanent --add-service=https --add-service=http && sudo firewall-cmd --reload
 ```
 
 **4. Start:**
@@ -531,6 +544,9 @@ or it is not on `PATH`: repeat step 1. Do not fix it by installing `podman-compo
 
 ```bash
 systemctl --user status podman.socket
+```
+
+```bash
 podman info --format '{{.Host.RemoteSocket.Path}} exists={{.Host.RemoteSocket.Exists}}'
 ```
 
@@ -561,8 +577,7 @@ them, because it hands the file to the same Compose implementation Docker uses.
 the threshold once on the host:
 
 ```bash
-echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/99-pql.conf
-sudo sysctl --system
+echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/99-pql.conf && sudo sysctl --system
 ```
 
 That keeps the containers unprivileged, which is most of the reason to run Podman. Running
@@ -590,10 +605,10 @@ automatically. Docker ignores the flag, so one file works on both.
 
 ## 10. Your own registry
 
-Mirror internally and point the whole deployment at your registry — no file edits, three
-variables:
+Mirror internally and point the whole deployment at your registry — no edits to the
+compose file, three lines **in `.env`** (edit the file; these are settings, not commands):
 
-```bash
+```ini
 PQL_IMAGE=registry.example.com/pql-app:3.4.0
 PQL_POSTGRES_IMAGE=registry.example.com/postgres:16
 PQL_CADDY_IMAGE=registry.example.com/caddy:2.11.4
@@ -714,10 +729,7 @@ image pulled before the multi-arch release survives every teardown and gets reus
 `up`. Delete the image itself:
 
 ```bash
-docker compose down
-docker rmi -f ghcr.io/postquantumleap/pql-app:latest ghcr.io/postquantumleap/pql-app:3.4.0
-docker compose pull
-docker compose up -d
+docker compose down && docker rmi -f ghcr.io/postquantumleap/pql-app:latest ghcr.io/postquantumleap/pql-app:3.4.0 && docker compose pull && docker compose up -d
 ```
 
 Then check what you actually have, before looking at anything else:
@@ -732,16 +744,13 @@ your machine still holds the image it pulled *before* the multi-arch release —
 a tag that already exists locally rather than re-resolving it against the registry.
 
 ```bash
-docker compose down
-docker compose pull
-docker compose up -d
+docker compose down && docker compose pull && docker compose up -d
 ```
 
 If it survives that, the tag is still mapped to the old digest. Drop it and pull again:
 
 ```bash
-docker rmi ghcr.io/postquantumleap/pql-app:latest ghcr.io/postquantumleap/pql-app:3.4.0
-docker compose pull
+docker rmi ghcr.io/postquantumleap/pql-app:latest ghcr.io/postquantumleap/pql-app:3.4.0 && docker compose pull
 ```
 
 Confirm what the registry actually offers — this needs no credentials and no local state:
@@ -763,10 +772,10 @@ one that is already there, and the proxy's fixed address then belongs to no subn
 Delete the network and let Compose make it properly:
 
 ```bash
-docker compose down
-docker network rm postquantumleap_default     # podman network rm ... under Podman
-docker compose up -d
+docker compose down && docker network rm postquantumleap_default && docker compose up -d
 ```
+
+Under Podman: `podman compose down && podman network rm postquantumleap_default && podman compose up -d`.
 
 **If that reports `has associated containers with it`,** something other than Compose is
 still attached. `podman-compose` names containers with **underscores**
@@ -776,6 +785,9 @@ remove them:
 
 ```bash
 podman ps -a --filter name=postquantumleap --format '{{.Names}}\t{{.Status}}'
+```
+
+```bash
 podman rm -f $(podman ps -aq --filter name=postquantumleap_)
 ```
 
@@ -799,8 +811,7 @@ every bit of data, TLS material and the local CA. There is no undo.
 Collect diagnostics for support:
 
 ```bash
-docker compose logs --no-color --tail 500 > pql-logs.txt
-docker compose ps -a >> pql-logs.txt
+docker compose logs --no-color --tail 500 > pql-logs.txt && docker compose ps -a >> pql-logs.txt
 ```
 
 ---

@@ -28,10 +28,7 @@ this: it cannot run this compose file ([README §9.1](../README.md#91-podman-com
 **1. Install Compose v2**, the same single binary as the supported route:
 
 ```bash
-mkdir -p ~/.local/bin
-curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" -o ~/.local/bin/docker-compose
-chmod +x ~/.local/bin/docker-compose
-export PATH="$HOME/.local/bin:$PATH"
+mkdir -p ~/.local/bin && curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" -o ~/.local/bin/docker-compose && chmod +x ~/.local/bin/docker-compose && export PATH="$HOME/.local/bin:$PATH"
 ```
 
 **2. Start the socket and point Compose at it.** Ask Podman where its socket is rather
@@ -41,8 +38,7 @@ fails with `dial unix /run/user/1000/podman.sock: connect: no such file or direc
 *after* the socket has started perfectly well:
 
 ```bash
-systemctl --user enable --now podman.socket
-export DOCKER_HOST="unix://$(podman info --format '{{.Host.RemoteSocket.Path}}')"
+systemctl --user enable --now podman.socket && export DOCKER_HOST="unix://$(podman info --format '{{.Host.RemoteSocket.Path}}')"
 ```
 
 **3. Rootless?** Allow ports 80 and 443 once, as in
@@ -59,6 +55,9 @@ If it cannot connect, check the socket is running and see the path it reports:
 
 ```bash
 systemctl --user status podman.socket
+```
+
+```bash
 podman info --format '{{.Host.RemoteSocket.Path}} exists={{.Host.RemoteSocket.Exists}}'
 ```
 

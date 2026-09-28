@@ -4,7 +4,8 @@ For a Linux host with internet access, running **Docker Engine** with the **Comp
 plugin. No internet on the host? Use [Docker — air-gapped](docker-airgapped.md). Podman?
 Use [Podman — online](podman.md).
 
-Every step is copy-paste. The [README](../README.md) explains the why behind each one.
+**Every command box is ONE command** — copy it whole, paste it, press Enter. The
+[README](../README.md) explains the why behind each step.
 
 > **Licence first.** Nothing is usable until a licence is entered at first login. Order it
 > now from [info@postquantumleap.com](mailto:info@postquantumleap.com) — see
@@ -17,8 +18,12 @@ docker compose version
 ```
 
 Anything from `2.0` up is fine. If `compose` is missing, install Docker Engine with its
-Compose plugin from [docs.docker.com/engine/install](https://docs.docker.com/engine/install/),
-and make sure Docker starts at boot: `sudo systemctl enable --now docker`.
+Compose plugin from [docs.docker.com/engine/install](https://docs.docker.com/engine/install/).
+Make sure Docker starts at boot:
+
+```bash
+sudo systemctl enable --now docker
+```
 
 Run the commands below as a user in the `docker` group, or put `sudo` in front of each
 `docker` command.
@@ -26,9 +31,7 @@ Run the commands below as a user in the `docker` group, or put `sudo` in front o
 ## 2. Get the files
 
 ```bash
-cd ~
-git clone https://github.com/PostQuantumLeap/pql-deploy.git postquantumleap
-cd postquantumleap
+cd ~ && git clone https://github.com/PostQuantumLeap/pql-deploy.git postquantumleap && cd postquantumleap
 ```
 
 No `git`? Download the [ZIP](https://github.com/PostQuantumLeap/pql-deploy/archive/refs/heads/main.zip),
@@ -36,54 +39,45 @@ unpack it and `cd` into `pql-deploy-main`.
 
 ## 3. Configure
 
-Create `.env` with freshly generated secrets and the pinned image. Set `V` to the version
-you install — the newest is on the [Releases](https://github.com/PostQuantumLeap/pql-deploy/releases)
-page:
+One command creates `.env` with freshly generated secrets and the pinned image. Put the
+version you install (newest: the [Releases](https://github.com/PostQuantumLeap/pql-deploy/releases)
+page) and your first administrator's sign-in — it must look like an e-mail address;
+nothing is ever mailed to it:
 
 ```bash
-V=3.4.0
-cp .env.example .env && chmod 600 .env
-K=$(openssl rand -base64 32 | tr '+/' '-_')
-sed -i \
-  -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(openssl rand -hex 24)|" \
-  -e "s|^SESSION_SECRET_KEY=.*|SESSION_SECRET_KEY=$(openssl rand -hex 32)|" \
-  -e "s|^INITIAL_ADMIN_PASSWORD=.*|INITIAL_ADMIN_PASSWORD=$(openssl rand -hex 12)|" \
-  -e "s|^SETTINGS_ENC_KEY=.*|SETTINGS_ENC_KEY=$K|" \
-  -e "s|^#PQL_IMAGE=.*|PQL_IMAGE=ghcr.io/postquantumleap/pql-app:$V|" \
-  .env
+sh install/generate-env.sh --version 3.4.0 --admin admin@yourcompany.example
 ```
 
-Set the first administrator's sign-in — it must look like an e-mail address; nothing is
-ever mailed to it:
-
-```bash
-sed -i "s|^INITIAL_ADMIN_USERNAME=.*|INITIAL_ADMIN_USERNAME=admin@yourcompany.example|" .env
-grep -E '^(INITIAL_ADMIN_USERNAME|INITIAL_ADMIN_PASSWORD|PQL_IMAGE)=' .env
-```
-
-**Copy `.env` somewhere safe.** `SETTINGS_ENC_KEY` cannot be recovered if it is lost, and
-never regenerate it or `SESSION_SECRET_KEY` after go-live.
+It prints the sign-in and password for step 6. **Copy `.env` somewhere safe** —
+`SETTINGS_ENC_KEY` cannot be recovered if it is lost.
 
 ## 4. Start
 
 ```bash
-docker compose up -d
-docker compose ps
+docker compose up -d && docker compose ps
 ```
 
-All three containers — `db`, `app`, `caddy` — should be running, `db` healthy. To watch the
-app start: `docker compose logs -f app` (Ctrl-C to stop watching). The containers restart
-on their own after a reboot.
+All three containers — `db`, `app`, `caddy` — should be running, `db` healthy. They
+restart on their own after a reboot. To watch the app start (Ctrl-C to stop watching):
+
+```bash
+docker compose logs -f app
+```
 
 ## 5. Open the firewall (if other machines cannot reach it)
 
-`curl -k https://localhost` answering on the host but nothing from another machine means
-the host firewall blocks 80/443:
+If `curl -k https://localhost` answers on the host but nothing reaches it from another
+machine, the host firewall blocks 80/443.
+
+RHEL, Rocky, Alma, Fedora:
 
 ```bash
-# RHEL, Rocky, Alma, Fedora
 sudo firewall-cmd --permanent --add-service=https --add-service=http && sudo firewall-cmd --reload
-# Ubuntu, Debian with ufw
+```
+
+Ubuntu, Debian with ufw:
+
+```bash
 sudo ufw allow 80,443/tcp
 ```
 
@@ -92,7 +86,7 @@ sudo ufw allow 80,443/tcp
 Open `https://<your-host>/`. The browser warns once — the certificate comes from the
 instance's own built-in CA until you install yours ([README §5](../README.md#5-certificates)).
 
-1. Sign in with `INITIAL_ADMIN_USERNAME` / `INITIAL_ADMIN_PASSWORD` from `.env`.
+1. Sign in with the username and password step 3 printed.
 2. Change the password when asked, and sign in again.
 3. Paste your licence.
 

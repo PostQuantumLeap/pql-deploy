@@ -96,13 +96,11 @@ jobs:
           ```
 
           ```bash
-          sha256sum -c pql-offline-__VERSION__-amd64.tar.gz.sha256
-          tar -xzf pql-offline-__VERSION__-amd64.tar.gz
-          cd pql-offline-__VERSION__-amd64
+          sha256sum -c pql-offline-__VERSION__-amd64.tar.gz.sha256 && tar -xzf pql-offline-__VERSION__-amd64.tar.gz && cd pql-offline-__VERSION__-amd64
           ```
 
-          Then follow `OFFLINE.md` inside — load the images, put the Compose binary
-          on your `PATH`, fill in `.env`, start.
+          Then follow the step-by-step guide inside the kit — `install/docker-airgapped.md`
+          or `install/podman-airgapped.md` — or the short `OFFLINE.md`.
 
           Loading the wrong architecture is not silent: the containers start and die
           immediately with `exec format error`.
@@ -257,22 +255,23 @@ jobs:
           **1. Load the images** (app, PostgreSQL, Caddy):
 
           ```bash
-          docker load -i images.tar        # or: podman load -i images.tar
+          docker load -i images.tar
           ```
+
+          Podman: `podman load -i images.tar`.
 
           **2. Compose.** Podman has none, and Docker may lack the plugin
           (`docker compose version` fails). Install the one in this kit:
 
           ```bash
-          mkdir -p ~/.local/bin && install -m 0755 bin/docker-compose ~/.local/bin/docker-compose
-          export PATH="$HOME/.local/bin:$PATH"
+          mkdir -p ~/.local/bin && install -m 0755 bin/docker-compose ~/.local/bin/docker-compose && export PATH="$HOME/.local/bin:$PATH"
           ```
 
-          **3. Configure.** `cp .env.example .env`, set the four REQUIRED values
-          (README §2), and pin the image this kit carries:
+          **3. Configure.** One command creates `.env` with generated secrets, pinned to
+          the image this kit carries:
 
           ```bash
-          PQL_IMAGE=ghcr.io/postquantumleap/pql-app:__VERSION__
+          sh install/generate-env.sh --admin admin@yourcompany.example
           ```
 
           **4. Start — `--pull never`**, so a missing image fails loudly here instead of
@@ -280,9 +279,10 @@ jobs:
 
           ```bash
           docker compose up -d --pull never
-          # Podman: systemctl --user enable --now podman.socket, then
-          podman compose up -d --pull never
           ```
+
+          Podman: first `systemctl --user enable --now podman.socket`, then
+          `podman compose up -d --pull never`.
 
           Rootless Podman cannot bind 80/443 without one sysctl — README §9, *Rootless,
           and ports below 1024*. On RHEL and Fedora, firewalld also blocks 80/443 from
