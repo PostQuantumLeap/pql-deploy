@@ -90,6 +90,9 @@ jobs:
 
           **Pick the file that matches the machine you will run it on.** Container
           images are saved one architecture per file, so there is no "both" download.
+          Each kit is attached twice with the same bytes: `pql-offline-__VERSION__-<arch>.tar.gz`,
+          and `pql-offline-<arch>.tar.gz` — the name the install guides' "newest kit" link
+          (`releases/latest/download/…`) uses.
 
           ```bash
           uname -m     # x86_64 -> amd64,  aarch64/arm64 -> arm64
@@ -341,8 +344,13 @@ jobs:
           set -euo pipefail
           tar -czf "${KIT}.tar.gz" "$KIT"
           sha256sum "${KIT}.tar.gz" > "${KIT}.tar.gz.sha256"
-          ls -lh "${KIT}.tar.gz"
-          cat "${KIT}.tar.gz.sha256"
+          # The same bytes under a VERSION-LESS name, so the guides can link
+          # releases/latest/download/pql-offline-<arch>.tar.gz and nobody types a
+          # version. Its own .sha256, because sha256sum -c checks by file name.
+          cp "${KIT}.tar.gz" "pql-offline-${ARCH}.tar.gz"
+          sha256sum "pql-offline-${ARCH}.tar.gz" > "pql-offline-${ARCH}.tar.gz.sha256"
+          ls -lh "${KIT}.tar.gz" "pql-offline-${ARCH}.tar.gz"
+          cat "${KIT}.tar.gz.sha256" "pql-offline-${ARCH}.tar.gz.sha256"
 
       - name: Refuse to upload anything but the kit
         run: |
@@ -360,4 +368,4 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          gh release upload "v${V}" --repo "$REPO" "${KIT}.tar.gz" "${KIT}.tar.gz.sha256" --clobber
+          gh release upload "v${V}" --repo "$REPO" "${KIT}.tar.gz" "${KIT}.tar.gz.sha256" "pql-offline-${ARCH}.tar.gz" "pql-offline-${ARCH}.tar.gz.sha256" --clobber

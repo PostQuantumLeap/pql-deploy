@@ -452,12 +452,15 @@ uname -m
 
 `x86_64` means **amd64**; `aarch64` or `arm64` means **arm64**.
 
-Download the matching `pql-offline-<version>-<arch>.tar.gz` and its `.sha256` from this
-repository's [Releases](https://github.com/PostQuantumLeap/pql-deploy/releases), carry
-both across, then:
+Download the kit and its `.sha256` — the step-by-step guides
+([Docker](install/docker-airgapped.md), [Podman](install/podman-airgapped.md)) have the
+exact commands. The newest is always at
+`https://github.com/PostQuantumLeap/pql-deploy/releases/latest/download/pql-offline-<arch>.tar.gz` (`amd64` or `arm64`); every version's files are also
+on its own [release page](https://github.com/PostQuantumLeap/pql-deploy/releases) as
+`pql-offline-<version>-<arch>.tar.gz`. Carry both files across, then:
 
 ```bash
-sha256sum -c pql-offline-<version>-amd64.tar.gz.sha256 && tar -xzf pql-offline-<version>-amd64.tar.gz && cd pql-offline-<version>-amd64 && docker load -i images.tar
+A=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && sha256sum -c "pql-offline-$A.tar.gz.sha256" && tar -xzf "pql-offline-$A.tar.gz" && cd "$(tar -tzf "pql-offline-$A.tar.gz" | head -1)" && docker load -i images.tar
 ```
 
 It verifies the checksum before unpacking. Under Podman the last part is `podman load -i images.tar`.

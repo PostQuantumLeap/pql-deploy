@@ -28,27 +28,40 @@ podman --version
 uname -m
 ```
 
-`x86_64` means you need the **amd64** kit; `aarch64` means **arm64**. Run everything below
+`x86_64` means the **amd64** kit, `aarch64` means **arm64** — the commands below pick it for you. Run everything below
 as the user who will own the installation, **not** with `sudo` unless a step says so.
 
 ## 2. Fetch the kit (on a machine with internet)
 
-The newest version is on the [Releases](https://github.com/PostQuantumLeap/pql-deploy/releases)
-page. Set `V` and `ARCH` in this one command, then run it — it downloads the kit and its
-checksum:
+This downloads the **newest** kit and its checksum, for the architecture of the machine
+you run it on:
 
 ```bash
-V=3.4.0 && ARCH=amd64 && curl -fLO "https://github.com/PostQuantumLeap/pql-deploy/releases/download/v$V/pql-offline-$V-$ARCH.tar.gz" && curl -fLO "https://github.com/PostQuantumLeap/pql-deploy/releases/download/v$V/pql-offline-$V-$ARCH.tar.gz.sha256"
+A=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && curl -fLO "https://github.com/PostQuantumLeap/pql-deploy/releases/latest/download/pql-offline-$A.tar.gz" && curl -fLO "https://github.com/PostQuantumLeap/pql-deploy/releases/latest/download/pql-offline-$A.tar.gz.sha256"
 ```
 
-Carry both files to the target, into your home directory.
+**Downloading on a machine of a different architecture than the target** — say a Mac with
+Apple Silicon for an x86 server? Use the box for the **target** instead.
+
+x86_64 target (amd64):
+
+```bash
+curl -fLO "https://github.com/PostQuantumLeap/pql-deploy/releases/latest/download/pql-offline-amd64.tar.gz" && curl -fLO "https://github.com/PostQuantumLeap/pql-deploy/releases/latest/download/pql-offline-amd64.tar.gz.sha256"
+```
+
+aarch64 target (arm64):
+
+```bash
+curl -fLO "https://github.com/PostQuantumLeap/pql-deploy/releases/latest/download/pql-offline-arm64.tar.gz" && curl -fLO "https://github.com/PostQuantumLeap/pql-deploy/releases/latest/download/pql-offline-arm64.tar.gz.sha256"
+```
+
+Carry both files to the target, into your home directory. (A specific older version: its
+files are on that version's [release page](https://github.com/PostQuantumLeap/pql-deploy/releases).)
 
 ## 3. Verify, unpack, load the images (on the target)
 
-Same `V` and `ARCH` as in step 2:
-
 ```bash
-cd ~ && V=3.4.0 && ARCH=amd64 && sha256sum -c "pql-offline-$V-$ARCH.tar.gz.sha256" && tar -xzf "pql-offline-$V-$ARCH.tar.gz" && cd "pql-offline-$V-$ARCH" && podman load -i images.tar
+cd ~ && A=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') && sha256sum -c "pql-offline-$A.tar.gz.sha256" && tar -xzf "pql-offline-$A.tar.gz" && cd "$(tar -tzf "pql-offline-$A.tar.gz" | head -1)" && podman load -i images.tar
 ```
 
 `podman images` now lists `docker.io/library/postgres`, `docker.io/library/caddy` and
