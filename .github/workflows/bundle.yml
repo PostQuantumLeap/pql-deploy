@@ -245,8 +245,11 @@ jobs:
 
           Everything an air-gapped host needs is in this folder: the deployment files,
           every container image `docker-compose.yml` runs, and the Compose v2 binary.
-          Nothing is downloaded. The full guide is `README.md`; these are the steps that
-          differ offline.
+          Nothing is downloaded.
+
+          **Step-by-step guides are in this folder:** `install/docker-airgapped.md` and
+          `install/podman-airgapped.md` (rootless by default). The summary below is for
+          readers who know the drill; `README.md` is the full reference.
 
           **0. Right architecture?** `uname -m` must say `__UNAME__`. Otherwise fetch the
           other kit — these images cannot run here.

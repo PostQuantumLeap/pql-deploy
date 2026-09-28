@@ -10,6 +10,18 @@ source is not here and is not needed.
 - **Image:** `ghcr.io/postquantumleap/pql-app` — public, no registry login required
 - **Licence:** required. See below — order it before you start
 
+### Start here: pick your install guide
+
+Each is a short, copy-paste sequence for one situation. This README is the reference
+behind them.
+
+| | Host has internet | Air-gapped host |
+|---|---|---|
+| **Docker** | [install/docker.md](install/docker.md) | [install/docker-airgapped.md](install/docker-airgapped.md) |
+| **Podman** 4.7+ (rootless by default) | [install/podman.md](install/podman.md) | [install/podman-airgapped.md](install/podman-airgapped.md) |
+
+Windows: [the Windows installer](#on-windows). Kubernetes: [`deploy/KUBERNETES.md`](deploy/KUBERNETES.md).
+
 ---
 
 ## 0. Order your licence first
@@ -87,6 +99,7 @@ What you now have:
 | `deploy/install-windows.ps1` | Windows only — does sections 1 to 3 for you, see below |
 | `deploy/KUBERNETES.md` | Kubernetes only — a Helm chart instead of Compose, see below |
 | `deploy/helm/` | the charts that guide installs |
+| `install/` | the four step-by-step install guides — see [Start here](#start-here-pick-your-install-guide) |
 | `deploy/PODMAN-BEFORE-4.7.md` | unsupported — Podman older than 4.7 only, see [§9](#9-running-under-podman) |
 
 Keep the directory layout. `docker-compose.yml` mounts `deploy/caddy/bootstrap.json`
