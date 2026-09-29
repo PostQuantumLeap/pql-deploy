@@ -107,7 +107,7 @@ page) and your first administrator's sign-in — it must look like an e-mail add
 nothing is ever mailed to it:
 
 ```bash
-sh install/generate-env.sh --version 3.4.0 --admin admin@yourcompany.example
+sh install/generate-env.sh --version 3.4.1 --admin admin@yourcompany.example
 ```
 
 It prints the sign-in and password for step 11. **Copy `.env` somewhere safe** —

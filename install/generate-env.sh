@@ -1,7 +1,7 @@
 #!/bin/sh
 # Create .env from .env.example with freshly generated secrets.
 #
-#   sh install/generate-env.sh --version 3.4.0 --admin admin@yourcompany.example
+#   sh install/generate-env.sh --version 3.4.1 --admin admin@yourcompany.example
 #   sh install/generate-env.sh --admin admin@yourcompany.example      # in an offline kit
 #
 #   --version  the image version to pin (PQL_IMAGE). Optional inside an offline
@@ -27,7 +27,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$V" ] && [ -f VERSIONS ]; then V="$(awk 'NR==1{print $4}' VERSIONS)"; fi
-[ -n "$V" ] || { echo "Pass --version, e.g. --version 3.4.0 (newest: the Releases page)." >&2; exit 2; }
+[ -n "$V" ] || { echo "Pass --version, e.g. --version 3.4.1 (newest: the Releases page)." >&2; exit 2; }
 case "$ADMIN" in ""|*@*.*) ;; *) echo "--admin must look like an e-mail address, got '$ADMIN'" >&2; exit 2 ;; esac
 [ -f .env.example ] || { echo "no .env.example here — run this from the deployment folder" >&2; exit 1; }
 if [ -e .env ]; then

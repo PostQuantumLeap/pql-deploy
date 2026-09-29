@@ -170,7 +170,7 @@ prefer it — Docker Desktop requires a paid subscription above a company-size t
 pinned — and never overwrites an existing `.env`:
 
 ```bash
-sh install/generate-env.sh --version 3.4.0 --admin admin@yourcompany.example
+sh install/generate-env.sh --version 3.4.1 --admin admin@yourcompany.example
 ```
 
 **By hand instead:** copy the template, then set the four required values in `.env`. The
@@ -227,7 +227,7 @@ right for a trial and wrong for a maintained installation: an unattended pull th
 you across a release boundary at a moment you did not choose.
 
 ```bash
-PQL_IMAGE=ghcr.io/postquantumleap/pql-app:3.4.0
+PQL_IMAGE=ghcr.io/postquantumleap/pql-app:3.4.1
 ```
 
 The versions actually published are listed at
@@ -618,7 +618,7 @@ Mirror internally and point the whole deployment at your registry — no edits t
 compose file, three lines **in `.env`** (edit the file; these are settings, not commands):
 
 ```ini
-PQL_IMAGE=registry.example.com/pql-app:3.4.0
+PQL_IMAGE=registry.example.com/pql-app:3.4.1
 PQL_POSTGRES_IMAGE=registry.example.com/postgres:16
 PQL_CADDY_IMAGE=registry.example.com/caddy:2.11.4
 ```
@@ -738,7 +738,7 @@ image pulled before the multi-arch release survives every teardown and gets reus
 `up`. Delete the image itself:
 
 ```bash
-docker compose down && docker rmi -f ghcr.io/postquantumleap/pql-app:latest ghcr.io/postquantumleap/pql-app:3.4.0 && docker compose pull && docker compose up -d
+docker compose down && docker rmi -f ghcr.io/postquantumleap/pql-app:latest ghcr.io/postquantumleap/pql-app:3.4.1 && docker compose pull && docker compose up -d
 ```
 
 Then check what you actually have, before looking at anything else:
@@ -759,13 +759,13 @@ docker compose down && docker compose pull && docker compose up -d
 If it survives that, the tag is still mapped to the old digest. Drop it and pull again:
 
 ```bash
-docker rmi ghcr.io/postquantumleap/pql-app:latest ghcr.io/postquantumleap/pql-app:3.4.0 && docker compose pull
+docker rmi ghcr.io/postquantumleap/pql-app:latest ghcr.io/postquantumleap/pql-app:3.4.1 && docker compose pull
 ```
 
 Confirm what the registry actually offers — this needs no credentials and no local state:
 
 ```bash
-docker buildx imagetools inspect ghcr.io/postquantumleap/pql-app:3.4.0
+docker buildx imagetools inspect ghcr.io/postquantumleap/pql-app:3.4.1
 ```
 
 That must list `linux/amd64` **and** `linux/arm64`. If it does and you still get the
