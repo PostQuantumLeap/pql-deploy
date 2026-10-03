@@ -8,6 +8,11 @@ Three guides, in the order you will need them.
 | 2 | [Quick start](quick-start.md) | The server runs and you have a login. Thirty minutes from the first sign-in to a scanned, graded inventory. |
 | 3 | [User guide](user-guide/README.md) | You want to do one specific thing: run a host scanner, read a compliance report, plan the migration, administer users. One short page per topic, with an advanced section for the detail. |
 
+## Release notes
+
+What changed in each release, and what to do before you upgrade:
+[release notes](release-notes/README.md).
+
 ## How the product fits together
 
 ![How work flows through Post Quantum Leap: find, one inventory, judge, plan](images/workflow.svg)

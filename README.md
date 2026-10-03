@@ -373,6 +373,9 @@ configuration.
 If you pinned `PQL_IMAGE` (and you should have), edit the tag first — `docker compose
 pull` on a pinned tag re-fetches the same image and changes nothing.
 
+Read the [release notes](docs/release-notes/README.md) for the version you are moving
+to before you pull it.
+
 > **Do not run two versions against one database at once.** `docker compose up -d` stops
 > the old container before starting the new one, so a normal upgrade is fine. What to
 > avoid is a rolling upgrade, a second manually started container, or a leftover
