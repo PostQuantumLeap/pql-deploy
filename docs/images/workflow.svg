@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1020 360" width="1020" height="360" role="img" aria-labelledby="t d">
+  <title id="t">How work flows through Post Quantum Leap</title>
+  <desc id="d">Four stages left to right. Find: direct scans, client scanners, Bifröst remote engines, imports, cloud sources and manual entries all feed one Inventory of endpoints, certificates and keys, graded by your Policy. Judge: the Overview and the Compliance reports read that inventory. Plan: cohorts go into dated waves with owners, shown on the Roadmap and exported as a board deck.</desc>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b8880"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1020" height="360" fill="#ffffff"/>
+
+  <!-- stage labels -->
+  <g font-family="ui-monospace, Menlo, monospace" font-size="10.5" letter-spacing="1.4" fill="#6c6961">
+    <text x="30" y="34">1 · FIND</text>
+    <text x="330" y="34">2 · ONE INVENTORY</text>
+    <text x="600" y="34">3 · JUDGE</text>
+    <text x="820" y="34">4 · PLAN</text>
+  </g>
+
+  <!-- find: six sources -->
+  <g font-family="Manrope, Helvetica, Arial, sans-serif" font-size="12.5" fill="#1b1b18">
+    <rect x="30" y="50" width="230" height="38" rx="8" fill="#ffffff" stroke="#e6e4e0"/>
+    <text x="44" y="74" font-weight="700">Direct scans</text>
+    <text x="150" y="74" font-size="11" fill="#5c5a54">TLS, 40+ service kinds</text>
+
+    <rect x="30" y="96" width="230" height="38" rx="8" fill="#ffffff" stroke="#12a594" stroke-width="1.5"/>
+    <text x="44" y="120" font-weight="700" fill="#0e7f72">Client scanners</text>
+    <text x="165" y="120" font-size="11" fill="#5c5a54">on the host itself</text>
+
+    <rect x="30" y="142" width="230" height="38" rx="8" fill="#ffffff" stroke="#12a594" stroke-width="1.5"/>
+    <text x="44" y="166" font-weight="700" fill="#0e7f72">Bifröst engines</text>
+    <text x="165" y="166" font-size="11" fill="#5c5a54">DMZ, isolated nets</text>
+
+    <rect x="30" y="188" width="230" height="38" rx="8" fill="#ffffff" stroke="#e6e4e0"/>
+    <text x="44" y="212" font-weight="700">Imports</text>
+    <text x="150" y="212" font-size="11" fill="#5c5a54">PEM, CBOM, host lists</text>
+
+    <rect x="30" y="234" width="230" height="38" rx="8" fill="#ffffff" stroke="#e6e4e0"/>
+    <text x="44" y="258" font-weight="700">Cloud (beta)</text>
+    <text x="150" y="258" font-size="11" fill="#5c5a54">keys, load balancers</text>
+
+    <rect x="30" y="280" width="230" height="38" rx="8" fill="#ffffff" stroke="#e6e4e0"/>
+    <text x="44" y="304" font-weight="700">Manual entries</text>
+    <text x="165" y="304" font-size="11" fill="#5c5a54">what no scan reaches</text>
+  </g>
+
+  <!-- arrows from sources into inventory -->
+  <g stroke="#8b8880" stroke-width="1.5" fill="none">
+    <path d="M 260 69 L 300 69 L 300 184 L 326 184" marker-end="url(#arr)"/>
+    <path d="M 260 115 L 300 115"/>
+    <path d="M 260 161 L 300 161"/>
+    <path d="M 260 207 L 300 207"/>
+    <path d="M 260 253 L 300 253"/>
+    <path d="M 260 299 L 300 299 L 300 184"/>
+  </g>
+
+  <!-- inventory -->
+  <rect x="330" y="110" width="230" height="150" rx="10" fill="rgba(18,165,148,0.08)" stroke="#12a594" stroke-width="1.5"/>
+  <g font-family="Manrope, Helvetica, Arial, sans-serif" text-anchor="middle">
+    <text x="445" y="148" font-size="15" font-weight="700" fill="#0e7f72">Inventory</text>
+    <text x="445" y="172" font-size="12" fill="#1b1b18">Endpoints · Certificates · Keys</text>
+    <text x="445" y="196" font-size="11.5" fill="#5c5a54">every source, one table</text>
+    <text x="445" y="228" font-size="11" fill="#5c5a54">graded by your</text>
+    <text x="445" y="244" font-size="11.5" font-weight="700" fill="#1b1b18">Policy</text>
+  </g>
+
+  <line x1="560" y1="184" x2="596" y2="184" stroke="#8b8880" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- judge -->
+  <g font-family="Manrope, Helvetica, Arial, sans-serif">
+    <rect x="600" y="110" width="190" height="64" rx="8" fill="#ffffff" stroke="#e6e4e0"/>
+    <text x="695" y="137" text-anchor="middle" font-size="13" font-weight="700" fill="#1b1b18">Overview</text>
+    <text x="695" y="157" text-anchor="middle" font-size="11" fill="#5c5a54">posture today, and the trend</text>
+
+    <rect x="600" y="196" width="190" height="64" rx="8" fill="#ffffff" stroke="#e6e4e0"/>
+    <text x="695" y="223" text-anchor="middle" font-size="13" font-weight="700" fill="#1b1b18">Compliance</text>
+    <text x="695" y="243" text-anchor="middle" font-size="11" fill="#5c5a54">eleven framework reports</text>
+  </g>
+
+  <line x1="790" y1="184" x2="816" y2="184" stroke="#8b8880" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- plan -->
+  <rect x="820" y="110" width="170" height="150" rx="10" fill="#ffffff" stroke="#12a594" stroke-width="1.5"/>
+  <g font-family="Manrope, Helvetica, Arial, sans-serif" text-anchor="middle">
+    <text x="905" y="140" font-size="14" font-weight="700" fill="#0e7f72">Planning</text>
+    <text x="905" y="166" font-size="12" fill="#1b1b18">Cohorts → Waves</text>
+    <text x="905" y="186" font-size="12" fill="#1b1b18">Owners · Roadmap</text>
+    <text x="905" y="214" font-size="11" fill="#5c5a54">exposure against your</text>
+    <text x="905" y="230" font-size="11" fill="#5c5a54">risk appetite, and a</text>
+    <text x="905" y="246" font-size="11" fill="#5c5a54">board deck to take along</text>
+  </g>
+</svg>

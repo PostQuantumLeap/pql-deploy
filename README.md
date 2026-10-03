@@ -22,6 +22,10 @@ behind them.
 | **Windows** (Docker Desktop or Podman Desktop) | [the Windows installer](#on-windows) | N/A |
 | **Kubernetes** (Helm) | [deploy/KUBERNETES.md](deploy/KUBERNETES.md) | N/A — see below |
 
+**Once it runs**, the [Quick start](docs/quick-start.md) takes you from the first
+sign-in to a scanned, graded inventory, and the [User guide](docs/user-guide/README.md)
+has one page per topic. [docs/README.md](docs/README.md) lists all three guides.
+
 **Kubernetes without internet is possible, but has no step-by-step guide yet.** The
 [offline kit](#8-air-gapped-installs) carries the Helm chart (`deploy/helm/pql`) and every
 image: load them, push them to your internal registry, and point the chart there with
@@ -309,7 +313,8 @@ to render, so the platform console is the only surface the application can show 
    Inventory, Sources, Policy, Compliance and the tenant's own Admin.
 
 7. A three-step **welcome wizard** (add a target → scan it → review) opens on that first
-   tenant login. Skip it any time; reopen from **About → Setup guide**.
+   tenant login. Skip it any time; reopen from **About → Setup guide**. From here the
+   [Quick start](docs/quick-start.md) takes over.
 
 **Two accounts, deliberately — but one person may hold both.** The console administers
 the installation; a tenant membership does the actual work. Someone holding the platform
